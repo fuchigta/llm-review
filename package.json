@@ -13,9 +13,9 @@
     "onLanguage:markdown",
     "onLanguage:plaintext"
   ],
-  "main": "./out/extension/extension.js",
+  "main": "./out/extension.js",
   "bin": {
-    "llm-review": "./bin/cli.js"
+    "llm-review": "./out/cli.js"
   },
   "contributes": {
     "configuration": {
@@ -29,8 +29,8 @@
         },
         "llmReview.configFileName": {
           "type": "string",
-          "default": "review.yaml",
-          "description": "設定ファイル名(レビュー対象ファイルと同ディレクトリに配置すること)"
+          "default": "llm-review.yaml",
+          "description": "設定ファイル名"
         }
       }
     },
@@ -42,7 +42,8 @@
     "watch": "tsc -watch -p ./",
     "pretest": "npm run compile && npm run lint",
     "lint": "eslint src",
-    "test": "vscode-test"
+    "test": "vscode-test",
+    "package": "vsce package"
   },
   "devDependencies": {
     "@types/mocha": "^10.0.10",
@@ -53,12 +54,22 @@
     "@vscode/test-cli": "^0.0.10",
     "@vscode/test-electron": "^2.4.1",
     "eslint": "^9.19.0",
-    "typescript": "^5.7.3"
+    "typescript": "^5.7.3",
+    "vsce": "^2.15.0"
   },
   "dependencies": {
+    "@iarna/toml": "^2.2.5",
+    "@langchain/core": "^0.3.40",
+    "@langchain/google-genai": "^0.1.8",
+    "@langchain/openai": "^0.4.4",
+    "commander": "^13.1.0",
+    "dotenv": "^16.4.7",
+    "handlebars": "^4.7.8",
+    "langchain": "^0.3.19",
     "textlint": "^14.4.2",
     "vscode-languageclient": "^9.0.1",
     "vscode-languageserver": "^9.0.1",
-    "vscode-languageserver-textdocument": "^1.0.12"
+    "vscode-languageserver-textdocument": "^1.0.12",
+    "zod": "^3.24.2"
   }
 }
