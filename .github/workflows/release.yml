@@ -1,0 +1,37 @@
+# This workflow will do a clean installation of node dependencies, cache/restore them, build the source code and run tests across different versions of node
+# For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-nodejs
+
+name: Release
+
+on:
+  push:
+    branches: [ "master" ]
+  pull_request:
+    branches: [ "master" ]
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+    - name: Use Node.js LTS
+      uses: actions/setup-node@v4
+      with:
+        node-version: lts
+        cache: 'npm'
+    - run: npm i
+    - run: npm run package
+    - name: Get version
+      id: version
+      run: |
+        echo "version=$(cat package.json | grep version | head -1 | awk -F: '{ print $2 }' | sed 's/[",]//g' | tr -d '[[:space:]]')" >> $GITHUB_OUTPUT
+    - name: Create Release
+      uses: softprops/action-gh-release@v2
+      with:
+        tag_name: ${{ steps.version.outputs.version }}
+        name: llm-review-${{ steps.version.outputs.version }}
+        draft: false
+        prerelease: false
+        files: llm-review-${{ steps.version.outputs.version }}.vsix
