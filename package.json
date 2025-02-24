@@ -1,7 +1,7 @@
 {
   "name": "llm-review",
   "displayName": "llm-review",
-  "description": "",
+  "description": "LLM を活用した効率的なレビューツール",
   "version": "0.0.1",
   "engines": {
     "vscode": "^1.97.0"
@@ -16,6 +16,9 @@
   "main": "./out/extension.js",
   "bin": {
     "llm-review": "./out/cli.js"
+  },
+  "repository": {
+    "url": "https://github.com/fuchigta/llm-review"
   },
   "contributes": {
     "configuration": {
@@ -37,7 +40,7 @@
     "commands": []
   },
   "scripts": {
-    "vscode:prepublish": "npm run compile",
+    "vscode:prepublish": "npm run compile -- -noCheck -noResolve ",
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
     "pretest": "npm run compile && npm run lint",
