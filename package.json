@@ -2,7 +2,7 @@
   "name": "llm-review",
   "displayName": "llm-review",
   "description": "LLM を活用した効率的なレビューツール",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "engines": {
     "vscode": "^1.97.0"
   },
@@ -28,10 +28,10 @@
           "default": true,
           "description": "レビューを有効にする"
         },
-        "llmReview.configFileName": {
+        "llmReview.configFilePath": {
           "type": "string",
-          "default": "llm-review.yaml",
-          "description": "設定ファイル名"
+          "default": "llm-review.toml",
+          "description": "設定ファイルパス"
         }
       }
     },

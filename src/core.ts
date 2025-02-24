@@ -57,9 +57,7 @@ const LLMReviewResponseSchema = z
             column: z
               .number()
               .int()
-              .describe(
-                '問題箇所の列番号。入力されたJSONの"content"内の何バイト目以降に問題があるか明確である場合に指定する。それ以外の場合は1を指定すること。'
-              ),
+              .describe("問題箇所の列番号。1を指定すること。"),
           })
           .describe("指摘事項")
       )

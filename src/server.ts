@@ -9,10 +9,9 @@ import {
   DidChangeConfigurationNotification,
 } from "vscode-languageserver/node";
 import { TextDocument } from "vscode-languageserver-textdocument";
-import path from "path";
 import fs from "fs";
 import * as toml from "@iarna/toml";
-import { CONFIG_NAMESPACE, DEFAULT_CONFIG_FILE_NAME } from "./constants";
+import { CONFIG_NAMESPACE, CONFIG_FILE_NAME } from "./constants";
 import { LLMReviewConfig, review, Severity } from "./core";
 
 const connection = createConnection(ProposedFeatures.all);
@@ -20,10 +19,16 @@ const documents = new TextDocuments(TextDocument);
 
 // 設定ファイルのキャッシュ
 let configCache: any = null;
-let configPath: string = DEFAULT_CONFIG_FILE_NAME;
+let configFilePath: string = CONFIG_FILE_NAME;
 
 connection.onInitialize((params: InitializeParams) => {
   try {
+    // 初期化オプションから設定ファイルのパスを取得
+    if (params.initializationOptions) {
+      configFilePath =
+        params.initializationOptions.configFilePath || CONFIG_FILE_NAME;
+    }
+
     return {
       capabilities: {
         textDocumentSync: TextDocumentSyncKind.Full,
@@ -44,18 +49,17 @@ connection.onInitialized(() => {
 });
 
 connection.onDidChangeWatchedFiles((change) => {
-  console.log(change);
   for (const event of change.changes) {
-    const fileName = path.basename(event.uri);
+    const filePath = event.uri.replace("file://", "");
 
-    console.log(fileName);
+    console.log(filePath);
 
-    if (fileName === "llm-review.toml") {
-      connection.console.log(`Config file changed: ${event.uri}`);
+    if (filePath === configFilePath) {
+      connection.console.log(`Config file changed: ${filePath}`);
 
       // キャッシュを無効化して再読み込み
       configCache = null;
-      configPath = event.uri.replace("file://", "");
+      configFilePath = filePath;
 
       // すべての開いているドキュメントを再検証
       documents.all().forEach(validateTextDocument);
@@ -63,35 +67,35 @@ connection.onDidChangeWatchedFiles((change) => {
   }
 });
 
-async function loadConfig(uri: string) {
+async function loadConfig() {
   if (configCache) {
     return configCache;
   }
 
   try {
-    // URIからファイルパスに変換
-    const filePath = uri.replace("file://", "");
-
     // ファイルの存在確認
-    if (!fs.existsSync(filePath)) {
-      connection.console.log(`Config file not found: ${filePath}`);
-      return {};
+    if (!fs.existsSync(configFilePath)) {
+      connection.console.log(`Config file not found: ${configFilePath}`);
+      return null;
     }
 
     // 設定ファイル読み込み
-    const content = fs.readFileSync(filePath, "utf8");
+    const content = fs.readFileSync(configFilePath, "utf8");
     configCache = toml.parse(content);
-    connection.console.log(`Config loaded from: ${filePath}`);
+    connection.console.log(`Config loaded from: ${configFilePath}`);
 
     return configCache;
   } catch (error) {
     connection.console.error(`Error loading config: ${error}`);
-    return {};
+    return null;
   }
 }
 
 async function validateTextDocument(textDocument: TextDocument) {
-  let config = await loadConfig(configPath);
+  let config = await loadConfig();
+  if (!config) {
+    return;
+  }
 
   const text = textDocument.getText();
   const filePath = textDocument.uri.replace("file://", "");
@@ -135,7 +139,7 @@ documents.onDidChangeContent((change) => {
 documents.listen(connection);
 connection.listen();
 
-function convertSeverity(severity: Severity): any {
+function convertSeverity(severity: Severity): DiagnosticSeverity {
   switch (severity) {
     case "HINT":
       return DiagnosticSeverity.Hint;

@@ -1,5 +1,3 @@
-// The module 'vscode' contains the VS Code extensibility API
-// Import the module and reference it with the alias vscode in your code below
 import * as vscode from "vscode";
 import * as path from "path";
 import {
@@ -11,7 +9,7 @@ import {
 import { workspace } from "vscode";
 import {
   CONFIG_KEY_CONFIG_FILE_NAME,
-  DEFAULT_CONFIG_FILE_NAME,
+  CONFIG_FILE_NAME,
   CONFIG_NAMESPACE,
 } from "./constants";
 
@@ -33,9 +31,9 @@ export function activate(context: vscode.ExtensionContext) {
   };
 
   const config = vscode.workspace.getConfiguration(CONFIG_NAMESPACE);
-  const configFileName = config.get<string>(
+  const configFilePath = config.get<string>(
     CONFIG_KEY_CONFIG_FILE_NAME,
-    DEFAULT_CONFIG_FILE_NAME
+    CONFIG_FILE_NAME
   );
 
   const clientOptions: LanguageClientOptions = {
@@ -44,7 +42,10 @@ export function activate(context: vscode.ExtensionContext) {
       { scheme: "file", language: "plaintext" },
     ],
     synchronize: {
-      fileEvents: workspace.createFileSystemWatcher(`**/${configFileName}`),
+      fileEvents: workspace.createFileSystemWatcher(configFilePath),
+    },
+    initializationOptions: {
+      configFilePath,
     },
   };
 
