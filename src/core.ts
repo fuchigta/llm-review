@@ -52,12 +52,14 @@ const LLMReviewResponseSchema = z
               .number()
               .int()
               .describe(
-                "問題箇所の行番号(1始まり)。空行も1行としてカウントすること。"
+                '問題箇所の行番号。入力されたJSONの"line"を指定すること。'
               ),
             column: z
               .number()
               .int()
-              .describe("問題箇所の列番号(行の中で何文字目に問題があるか)"),
+              .describe(
+                '問題箇所の列番号。入力されたJSONの"content"内の何バイト目以降に問題があるか明確である場合に指定する。それ以外の場合は1を指定すること。'
+              ),
           })
           .describe("指摘事項")
       )
@@ -115,6 +117,12 @@ export async function review(
     docConfig.prompt || config.docs.default.prompt
   );
 
+  const userPrompt = JSON.stringify({
+    input: fileContent
+      .split(/\r?\n/g)
+      .map((line, i) => ({ line: i + 1, content: line })),
+  });
+
   try {
     const res = await llm
       .withStructuredOutput(LLMReviewResponseSchema, {
@@ -122,7 +130,7 @@ export async function review(
       })
       .invoke([
         ["system", promptTemplate(docConfig)],
-        ["user", fileContent],
+        ["user", userPrompt],
       ]);
 
     return res.diagnostics;

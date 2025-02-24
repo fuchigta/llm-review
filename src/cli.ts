@@ -1,8 +1,11 @@
+#!/usr/bin/env node
+
 import fs from "fs";
 import * as toml from "@iarna/toml";
 import { program } from "commander";
 import { LLMReviewConfig, review } from "./core";
 import { DEFAULT_CONFIG_FILE_NAME } from "./constants";
+import { version } from "../package.json";
 
 function loadConfig(filePath: string) {
   try {
@@ -18,24 +21,39 @@ function loadConfig(filePath: string) {
 }
 
 async function main() {
-  program.option("--config").argument("<string>");
-  program.parse();
+  program
+    .name('llm-review')
+    .description('LLM を活用した効率的なレビューツール')
+    .version(version)
+    .option('--config <path>', 'Config file path', DEFAULT_CONFIG_FILE_NAME)
+    .argument('<files...>', 'Files to review')
+    .parse();
 
-  const config = loadConfig(
-    program.opts().config || DEFAULT_CONFIG_FILE_NAME
-  ) as LLMReviewConfig;
+  const config = loadConfig(program.opts().config) as LLMReviewConfig;
 
-  for (const file of program.args) {
-    const text = fs.readFileSync(file, { encoding: "utf8" });
+  const files = program.args;
+  if (files.length === 0) {
+    console.error('No files specified');
+    process.exit(1);
+  }
 
-    const res = await review(file, text, config);
+  for (const file of files) {
+    try {
+      const text = fs.readFileSync(file, { encoding: "utf8" });
+      const res = await review(file, text, config);
 
-    for (const ld of res) {
-      console.log(
-        `${file}:${ld.line}:${ld.column}: ${ld.severity} - ${ld.message}`
-      );
+      for (const ld of res) {
+        console.log(
+          `${file}:${ld.line}:${ld.column}: ${ld.severity} - ${ld.message}`
+        );
+      }
+    } catch (error) {
+      console.error(`Error processing file ${file}:`, error);
     }
   }
 }
 
-main().catch((err) => console.error(err));
+main().catch((error) => {
+  console.error('Error:', error);
+  process.exit(1);
+});

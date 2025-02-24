@@ -6,15 +6,15 @@ LLM を利用してプレーンテキストに対するレビューができる�
 
 テキストで記述されたレビュー観点をシステムプロンプトとして、入力された文書のレビューを実施できます。
 
-- 見出し構造や論理展開、文書の目的と内容との矛盾などの文脈依存な内容を、 LLM を活用することでレビューできます
-- textlint のような表記ゆれ、句読点の数、一文の長さなどを検証してくれる厳密なリンターと併用することで、文書の読みやすさを向上できます
+- 見出し構造や論理展開、文書の目的と内容との矛盾などの文脈依存な内容を、 LLM を活用することでレビューできます。
+- textlint のような表記ゆれ、句読点の数、一文の長さなどを検証してくれる厳密なリンターと併用することで、文書の読みやすさを向上できます。
 
 ## 機能
 
 1. CLI
-   - コマンドラインから指定したテキストに対してレビューを実行できます
+   - コマンドラインから指定したテキストに対してレビューを実行できます。
 2. Visual Studio Code 拡張機能
-   - リアルタイムで表示中のテキストに対してレビューを実行できます
+   - リアルタイムで表示中のテキストに対してレビューを実行できます。
 
 ## 設定方法
 
@@ -92,16 +92,16 @@ LLM に関する設定です。
 
 - `provider`
   - 必須設定です。設定ファイル内、または環境変数「`LLM_PROVIDER`」で指定してください。
-  - "google"、"openai"、"azure-openai"のいずれかを指定します
+  - "google"、"openai"、"azure-openai"のいずれかを指定します。
 - `model`
   - 必須設定です。設定ファイル内、または環境変数「`LLM_MODEL`」で指定してください。
-  - `provider`で指定した LLM で利用可能なモデルを指定してください
+  - `provider`で指定した LLM で利用可能なモデルを指定してください。
 - `apiVersion`
   - "azure-openai"では必須設定です。設定ファイル内、または環境変数「`LLM_API_VERSION`」で指定してください。
-  - "azure-openai" の`model`で指定したモデルで利用可能な API バージョンを指定してください
+  - "azure-openai" の`model`で指定したモデルで利用可能な API バージョンを指定してください。
 - `basePath`
   - "azure-openai"では必須設定です。設定ファイル内、または環境変数「`LLM_API_BASE_PATH`」で指定してください。
-  - "https://<ドメイン>/openai/deployments"のように指定してください
+  - "https://<ドメイン>/openai/deployments"のように指定してください。
 
 API キーについては以下の通りです。
 
@@ -209,8 +209,11 @@ target="""
 本リポジトリを npm パッケージとしてインストールして利用してください。
 
 ```sh
-# 0.0.1をインストールする場合
-npm --save-dev install github:fuchigta/llm-review#0.0.1
+# 0.0.2をバージョン指定でインストールする場合
+npm --save-dev install github:fuchigta/llm-review#0.0.2
+
+# 最新版をインストールする場合
+npm --save-dev install github:fuchigta/llm-review
 
 # CLIを実行(README.mdをレビューする場合)
 npx llm-review README.md
@@ -221,8 +224,8 @@ npx llm-review README.md
 [Release ページ](https://github.com/fuchigta/llm-review/releases)から最新版の vsix をダウンロードして以下の通りインストールしてください。
 
 ```sh
-# v0.0.1をインストールする場合(最新版のバージョンに合わせる)
-code --install-extension .\llm-review-0.0.1.vsix
+# v0.0.2をインストールする場合(最新版のバージョンに合わせる)
+code --install-extension .\llm-review-0.0.2.vsix
 ```
 
 ## 問い合わせ方法
