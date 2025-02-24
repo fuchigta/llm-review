@@ -2,6 +2,7 @@ import fs from "fs";
 import * as toml from "@iarna/toml";
 import { program } from "commander";
 import { LLMReviewConfig, review } from "./core";
+import { DEFAULT_CONFIG_FILE_NAME } from "./constants";
 
 function loadConfig(filePath: string) {
   try {
@@ -20,14 +21,14 @@ async function main() {
   program.option("--config").argument("<string>");
   program.parse();
 
+  const config = loadConfig(
+    program.opts().config || DEFAULT_CONFIG_FILE_NAME
+  ) as LLMReviewConfig;
+
   for (const file of program.args) {
     const text = fs.readFileSync(file, { encoding: "utf8" });
 
-    const res = await review(
-      file,
-      text,
-      loadConfig(program.opts().config || "llm-review.toml") as LLMReviewConfig
-    );
+    const res = await review(file, text, config);
 
     for (const ld of res) {
       console.log(

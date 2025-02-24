@@ -9,7 +9,6 @@ export interface LLMReviewConfig {
   llm?: {
     provider: "google" | "openai" | "azure-openai";
     model?: string;
-    apiKey?: string;
     apiVersion?: string;
     basePath?: string;
   };
@@ -78,28 +77,27 @@ export async function review(
   switch (config.llm?.provider || process.env.LLM_PROVIDER) {
     case "google":
       llm = new ChatGoogleGenerativeAI({
-        model: config.llm?.model || process.env.GOOGLE_MODEL,
-        apiKey: config.llm?.apiKey || process.env.GOOGLE_API_KEY,
+        model: config.llm?.model || process.env.LLM_MODEL,
+        apiKey: process.env.LLM_API_KEY,
       });
       break;
     case "openai":
       llm = new ChatOpenAI({
-        model: config.llm?.model || process.env.OPENAI_MODEL,
-        apiKey: config.llm?.apiKey || process.env.OPENAI_API_KEY,
+        model: config.llm?.model || process.env.LLM_MODEL,
+        apiKey: process.env.LLM_API_KEY,
       });
       break;
     case "azure-openai":
       llm = new AzureChatOpenAI({
-        model: config.llm?.model || process.env.AZUER_OPENAI_MODEL,
-        apiKey: config.llm?.apiKey || process.env.AZUER_OPENAI_API_KEY,
+        model: config.llm?.model || process.env.LLM_MODEL,
+        apiKey: process.env.LLM_API_KEY,
         azureOpenAIApiDeploymentName:
-          config.llm?.model || process.env.AZUER_OPENAI_MODEL,
-        azureOpenAIApiKey:
-          config.llm?.apiKey || process.env.AZUER_OPENAI_API_KEY,
+          config.llm?.model || process.env.LLM_MODEL,
+        azureOpenAIApiKey: process.env.LLM_API_KEY,
         azureOpenAIApiVersion:
-          config.llm?.apiVersion || process.env.AZUER_OPENAI_API_VERSION,
+          config.llm?.apiVersion || process.env.LLM_API_VERSION,
         azureOpenAIBasePath:
-          config.llm?.basePath || process.env.AZUER_OPENAI_API_BASE_PATH,
+          config.llm?.basePath || process.env.LLM_API_BASE_PATH,
       });
       break;
     default:
