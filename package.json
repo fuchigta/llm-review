@@ -48,10 +48,12 @@
     "pretest": "npm run compile && npm run lint",
     "lint": "eslint src",
     "test": "vscode-test",
-    "package": "vsce package"
+    "package": "vsce package --dependencies"
   },
   "files": [
-    "out/**/*"
+    "out/**/*",
+    "LICENSE",
+    "README.md"
   ],
   "devDependencies": {
     "@types/mocha": "^10.0.10",
