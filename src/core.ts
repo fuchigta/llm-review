@@ -4,6 +4,7 @@ import Handlebars from "handlebars";
 import path from "path";
 import z from "zod";
 import { configDotenv } from "dotenv";
+import { HttpsProxyAgent } from "https-proxy-agent";
 
 export interface LLMReviewConfig {
   llm?: {
@@ -85,6 +86,9 @@ export async function review(
       llm = new ChatOpenAI({
         model: config.llm?.model || process.env.LLM_MODEL,
         apiKey: process.env.LLM_API_KEY,
+        configuration: {
+          httpAgent: process.env.HTTPS_PROXY ? new HttpsProxyAgent(process.env.HTTPS_PROXY) : undefined
+        }
       });
       break;
     case "azure-openai":
@@ -98,6 +102,9 @@ export async function review(
           config.llm?.apiVersion || process.env.LLM_API_VERSION,
         azureOpenAIBasePath:
           config.llm?.basePath || process.env.LLM_API_BASE_PATH,
+        configuration: {
+          httpAgent: process.env.HTTPS_PROXY ? new HttpsProxyAgent(process.env.HTTPS_PROXY) : undefined
+        }
       });
       break;
     default:

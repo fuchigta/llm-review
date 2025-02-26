@@ -209,8 +209,8 @@ target="""
 本リポジトリを npm パッケージとしてインストールして利用してください。
 
 ```sh
-# 0.0.2をバージョン指定でインストールする場合
-npm --save-dev install github:fuchigta/llm-review#0.0.2
+# 0.0.4をバージョン指定でインストールする場合
+npm --save-dev install github:fuchigta/llm-review#0.0.4
 
 # 最新版をインストールする場合
 npm --save-dev install github:fuchigta/llm-review
@@ -224,8 +224,8 @@ npx llm-review README.md
 [Release ページ](https://github.com/fuchigta/llm-review/releases)から最新版の vsix をダウンロードして以下の通りインストールしてください。
 
 ```sh
-# v0.0.2をインストールする場合(最新版のバージョンに合わせる)
-code --install-extension .\llm-review-0.0.2.vsix
+# v0.0.4をインストールする場合(最新版のバージョンに合わせる)
+code --install-extension .\llm-review-0.0.4.vsix
 ```
 
 ## 問い合わせ方法
