@@ -1,11 +1,12 @@
 #!/usr/bin/env node
 
-import fs from "fs";
 import * as toml from "@iarna/toml";
 import { program } from "commander";
-import { LLMReviewConfig, review } from "./core";
-import { CONFIG_FILE_NAME } from "./constants";
+import fs from "fs";
+import { glob } from "glob";
 import { version } from "../package.json";
+import { CONFIG_FILE_NAME } from "./constants";
+import { LLMReviewConfig, review } from "./core";
 
 function loadConfig(filePath: string) {
   try {
@@ -27,7 +28,8 @@ async function main() {
     .description("LLM を活用した効率的なレビューツール")
     .version(version)
     .option("--config <path>", "Config file path", CONFIG_FILE_NAME)
-    .argument("<files...>", "Files to review")
+    .option("--ignore <patterns>", "Glob patterns to ignore (comma-separated)")
+    .argument("<patterns...>", "Files or glob patterns to review")
     .parse();
 
   const config = loadConfig(program.opts().config) as LLMReviewConfig;
@@ -35,16 +37,59 @@ async function main() {
     process.exit(1);
   }
 
-  const files = program.args;
-  if (files.length === 0) {
-    console.error("No files specified");
+  const patterns = program.args;
+  if (patterns.length === 0) {
+    console.error("No files or patterns specified");
     process.exit(1);
   }
 
-  for (const file of files) {
+  // 無視パターンを処理
+  const ignorePatterns = program.opts().ignore
+    ? program.opts().ignore.split(",")
+    : [];
+
+  let allFiles: string[] = [];
+
+  // 各パターンに対してファイルを取得
+  for (const pattern of patterns) {
+    try {
+      // パターンにワイルドカードが含まれているか確認
+      if (
+        pattern.includes("*") ||
+        pattern.includes("?") ||
+        pattern.includes("[")
+      ) {
+        const files = await glob(pattern, { ignore: ignorePatterns });
+        allFiles = allFiles.concat(files);
+      } else {
+        // ワイルドカードがない場合はファイルとして直接追加
+        if (fs.existsSync(pattern) && fs.statSync(pattern).isFile()) {
+          allFiles.push(pattern);
+        } else {
+          console.warn(`Warning: File not found: ${pattern}`);
+        }
+      }
+    } catch (error) {
+      console.error(`Error processing pattern ${pattern}:`, error);
+    }
+  }
+
+  // 重複を除去
+  allFiles = [...new Set(allFiles)];
+
+  if (allFiles.length === 0) {
+    console.error("No matching files found");
+    process.exit(1);
+  }
+
+  for (const file of allFiles) {
     try {
       const text = fs.readFileSync(file, { encoding: "utf8" });
       const res = await review(file, text, config);
+
+      if (!res.length) {
+        continue;
+      }
 
       for (const ld of res) {
         console.log(

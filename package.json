@@ -2,7 +2,7 @@
   "name": "llm-review",
   "displayName": "llm-review",
   "description": "LLM を活用した効率的なレビューツール",
-  "version": "0.0.4",
+  "version": "0.0.5",
   "engines": {
     "vscode": "^1.97.0"
   },
@@ -56,6 +56,8 @@
     "README.md"
   ],
   "devDependencies": {
+    "@types/glob": "^8.1.0",
+    "@types/minimatch": "^5.1.2",
     "@types/mocha": "^10.0.10",
     "@types/node": "20.x",
     "@types/vscode": "^1.97.0",
@@ -75,9 +77,11 @@
     "@langchain/openai": "^0.4.4",
     "commander": "^13.1.0",
     "dotenv": "^16.4.7",
+    "glob": "^11.0.1",
     "handlebars": "^4.7.8",
     "https-proxy-agent": "^7.0.6",
     "langchain": "^0.3.19",
+    "minimatch": "^10.0.1",
     "vscode-languageclient": "^9.0.1",
     "vscode-languageserver": "^9.0.1",
     "vscode-languageserver-textdocument": "^1.0.12",

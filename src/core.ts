@@ -5,6 +5,7 @@ import path from "path";
 import z from "zod";
 import { configDotenv } from "dotenv";
 import { HttpsProxyAgent } from "https-proxy-agent";
+import { minimatch } from "minimatch";
 
 export interface LLMReviewConfig {
   llm?: {
@@ -18,6 +19,11 @@ export interface LLMReviewConfig {
     default: {
       prompt: string;
     };
+    // フォルダパターンごとのデフォルトプロンプト設定を追加
+    folderDefaults?: Array<{
+      pattern: string; // グロブパターン (例: "src/components/**/*.ts")
+      prompt: string;
+    }>;
   } & {
     [name: string]: {
       [key: string]: any;
@@ -40,6 +46,13 @@ const SeveritySchema = z.enum([
 ]);
 
 export type Severity = z.infer<typeof SeveritySchema>;
+
+function matchGlob(filePath: string, pattern: string): boolean {
+  return (
+    minimatch(filePath, pattern) ||
+    minimatch(path.relative(".", filePath), pattern)
+  );
+}
 
 const LLMReviewResponseSchema = z
   .object({
@@ -87,8 +100,10 @@ export async function review(
         model: config.llm?.model || process.env.LLM_MODEL,
         apiKey: process.env.LLM_API_KEY,
         configuration: {
-          httpAgent: process.env.HTTPS_PROXY ? new HttpsProxyAgent(process.env.HTTPS_PROXY) : undefined
-        }
+          httpAgent: process.env.HTTPS_PROXY
+            ? new HttpsProxyAgent(process.env.HTTPS_PROXY)
+            : undefined,
+        },
       });
       break;
     case "azure-openai":
@@ -103,8 +118,10 @@ export async function review(
         azureOpenAIBasePath:
           config.llm?.basePath || process.env.LLM_API_BASE_PATH,
         configuration: {
-          httpAgent: process.env.HTTPS_PROXY ? new HttpsProxyAgent(process.env.HTTPS_PROXY) : undefined
-        }
+          httpAgent: process.env.HTTPS_PROXY
+            ? new HttpsProxyAgent(process.env.HTTPS_PROXY)
+            : undefined,
+        },
       });
       break;
     default:
@@ -112,14 +129,18 @@ export async function review(
   }
 
   const fileName = path.basename(filePath);
+  const target = config.docs[fileName];
 
-  const docConfig = config.docs[fileName];
-  if (!docConfig) {
+  const matched = config.docs.folderDefaults?.find((folderDefault) =>
+    matchGlob(filePath, folderDefault.pattern)
+  );
+
+  if (!matched && !target) {
     return [];
   }
 
-  const promptTemplate = Handlebars.compile(
-    docConfig.prompt || config.docs.default.prompt
+  const systemPromptTemplate = Handlebars.compile(
+    target?.prompt || matched?.prompt || config.docs.default.prompt
   );
 
   const userPrompt = JSON.stringify({
@@ -134,7 +155,7 @@ export async function review(
         strict: true,
       })
       .invoke([
-        ["system", promptTemplate(docConfig)],
+        ["system", systemPromptTemplate(target || {})],
         ["user", userPrompt],
       ]);
 
