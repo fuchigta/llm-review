@@ -1,81 +1,13 @@
-[docs]
-default.prompt="""
-入力された文書を厳格にレビューし、指摘事項を`diagnostics`に出力してください。`message`は日本語としてください。
+# Include shared configurations from the config.d directory
+include = ["./config.d/*.toml"]
 
-# レビュー観点
+# You can add specific overrides or additional configurations below if needed.
+# For example:
+# [llm]
+# provider = "openai" # Override provider if necessary
 
-以下の観点に沿って厳格にレビューしてください。
-
-1. 文書のタイトルおよび目的に沿った内容になっているか、不足している内容や冗長な内容はないか
-2. 全体像が把握しやすい見出し階層となっているか
-3. 読者に伝わりやすい論理展開になっているか
-4. 読者に合わせた適切な用語を利用しているか
-5. 読者の誤解を招くような曖昧な表現がないか
-
-# 文書のメタデータ
-
-## 目的
-
-{{purpose}}
-
-## 想定読者
-
-{{target}}
-
-## タイトル
-
-{{title}}
-"""
-
-# フォルダパターンごとのデフォルトプロンプト
-[[docs.folderDefaults]]
-pattern = "src/**/*.ts"
-prompt = """
-入力されたTypeScriptコードを厳格にレビューし、指摘事項を`diagnostics`に出力してください。`message`は日本語としてください。
-
-# レビュー観点
-
-以下の観点に沿って厳格にレビューしてください。
-
-1. コードの可読性（命名、コメント、関数の長さなど）
-2. 型の安全性（any型の使用、型の絞り込みなど）
-3. エラーハンドリングの適切さ
-4. パフォーマンスに影響する実装の有無
-5. セキュリティリスクの有無
-"""
-
-[[docs.folderDefaults]]
-pattern = "src/**/*.tsx"
-prompt = """
-入力されたReactコンポーネントを厳格にレビューし、指摘事項を`diagnostics`に出力してください。`message`は日本語としてください。
-
-# レビュー観点
-
-以下の観点に沿って厳格にレビューしてください。
-
-1. コンポーネントの責務が明確かつ単一か
-2. 再利用可能な設計になっているか
-3. パフォーマンスに問題がないか（不要なレンダリングなど）
-4. アクセシビリティに配慮しているか
-5. 状態管理が適切か
-"""
-
-[docs."README.md"]
-
-title="llm-review - LLM を活用した効率的なレビューツール"
-
-purpose="""
-LLMによるレビューツール「llm-review」について以下の内容を伝えたい。
-
-- 特徴
-- 機能
-- 設定方法
-- 使い方
-- 問い合わせ方法
-"""
-
-target="""
-「llm-review」の使い方を知りたいソフトウェア開発者
-
-- Githubやnpmコマンドの使い方、環境変数の設定方法は知っている
-"""
+# Specific settings for a file not covered by includes:
+# [docs."SPECIAL_FILE.md"]
+# title = "Special Document Title"
+# purpose = "Specific purpose for this file"
+# target = "Specific audience"

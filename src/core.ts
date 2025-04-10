@@ -8,6 +8,9 @@ import { HttpsProxyAgent } from "https-proxy-agent";
 import { minimatch } from "minimatch";
 
 export interface LLMReviewConfig {
+  // Optional list of glob patterns for including other config files
+  include?: string[];
+
   llm?: {
     provider: "google" | "openai" | "azure-openai";
     model?: string;
