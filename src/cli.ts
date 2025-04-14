@@ -2,12 +2,82 @@
 
 import * as toml from "@iarna/toml";
 import { program } from "commander";
-import fs from "fs";
+import fs, { readFileSync, writeFileSync, existsSync } from "fs";
 import path from "path";
 import { glob } from "glob";
 import { version } from "../package.json";
 import { CONFIG_FILE_NAME } from "./constants";
 import { LLMReviewConfig, review } from "./core";
+import { createHash } from "crypto";
+
+// メモリファイルのパス
+const MEMORY_FILE = path.resolve("memory.json");
+
+// ファイルのハッシュを計算
+function calculateHash(filePath: string): string {
+  const fileContent = fs.readFileSync(filePath, "utf8");
+  return createHash("sha256").update(fileContent).digest("hex");
+}
+
+// メモリデータの読み込み
+function loadMemory(): Record<
+  string,
+  { hash: string; diagnostics: Record<string, Set<string>> }
+> {
+  if (existsSync(MEMORY_FILE)) {
+    try {
+      const rawData = JSON.parse(readFileSync(MEMORY_FILE, "utf8"));
+      const memory: Record<
+        string,
+        { hash: string; diagnostics: Record<string, Set<string>> }
+      > = {};
+      for (const file in rawData) {
+        memory[file] = {
+          hash: rawData[file].hash,
+          diagnostics: Object.fromEntries(
+            Object.entries(rawData[file].diagnostics).map(([key, messages]) => [
+              key,
+              new Set(messages as string[]), // 型を明示的にキャスト
+            ])
+          ),
+        };
+      }
+      return memory;
+    } catch (error) {
+      console.error("Failed to load memory file:", error);
+    }
+  }
+  return {};
+}
+
+// メモリデータの保存
+function saveMemory(
+  memory: Record<
+    string,
+    { hash: string; diagnostics: Record<string, Set<string>> }
+  >
+) {
+  try {
+    const rawData: Record<
+      string,
+      { hash: string; diagnostics: Record<string, string[]> }
+    > = {};
+    for (const file in memory) {
+      rawData[file] = {
+        hash: memory[file].hash,
+        diagnostics: Object.fromEntries(
+          Object.entries(memory[file].diagnostics).map(([key, messages]) => [
+            key,
+            Array.from(messages),
+          ])
+        ),
+      };
+    }
+    writeFileSync(MEMORY_FILE, JSON.stringify(rawData, null, 2), "utf8");
+  } catch (error) {
+    console.error("Failed to save memory file:", error);
+  }
+}
 
 // オブジェクトをディープマージする（配列は結合）
 function deepMerge(target: any, source: any): any {
@@ -186,16 +256,38 @@ async function main() {
     process.exit(1);
   }
 
+  // メモリデータの読み込み
+  const memory = loadMemory();
+
   for (const file of allFiles) {
     try {
+      const currentHash = calculateHash(file);
+
+      // ハッシュが異なる場合、diagnosticsをクリア
+      if (memory[file]?.hash !== currentHash) {
+        memory[file] = { hash: currentHash, diagnostics: {} };
+      }
+
       const text = fs.readFileSync(file, { encoding: "utf8" });
-      const res = await review(file, text, config);
+      const res = await review(
+        file,
+        text,
+        config,
+        Object.values(memory[file].diagnostics).flatMap((set) =>
+          Array.from(set)
+        )
+      );
 
       if (!res.length) {
         continue;
       }
 
+      // メモリに新しい指摘を追加
       for (const ld of res) {
+        const key = `${ld.line}:${ld.column}`;
+        memory[file].diagnostics[key] =
+          memory[file].diagnostics[key] || new Set();
+        memory[file].diagnostics[key].add(ld.message);
         console.log(
           `${file}:${ld.line}:${ld.column}: ${ld.severity} - ${ld.message}`
         );
@@ -204,6 +296,9 @@ async function main() {
       console.error(`Error processing file ${file}:`, error);
     }
   }
+
+  // メモリデータを保存
+  saveMemory(memory);
 }
 
 main().catch((error) => {

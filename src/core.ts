@@ -80,12 +80,13 @@ const LLMReviewResponseSchema = z
       )
       .describe("指摘事項のリスト"),
   })
-  .describe("レビュー実施結果");
+  .describe("レビュー実施結果。前回指摘(prevMessages)と同義の指摘は禁止する。");
 
 export async function review(
   filePath: string,
   fileContent: string,
-  config: LLMReviewConfig
+  config: LLMReviewConfig,
+  diagnostics: string[] // diagnosticsをmessageのリストに変更
 ) {
   configDotenv();
 
@@ -150,6 +151,7 @@ export async function review(
     input: fileContent
       .split(/\r?\n/g)
       .map((line, i) => ({ line: i + 1, content: line })),
+    prevMessages: diagnostics, // diagnosticsをそのまま渡す
   });
 
   try {
@@ -162,7 +164,7 @@ export async function review(
         ["user", userPrompt],
       ]);
 
-    return res.diagnostics;
+    return res.diagnostics.map((diagnostic) => ({ ...diagnostic, column: 1 }));
   } catch (err) {
     console.error(err);
     return [];
