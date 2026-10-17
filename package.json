@@ -78,7 +78,7 @@
     "commander": "^13.1.0",
     "dotenv": "^16.4.7",
     "glob": "^11.1.0",
-    "handlebars": "^4.7.9",
+    "handlebars": "^4.7.10",
     "https-proxy-agent": "^7.0.6",
     "langchain": "^1.5.12",
     "minimatch": "^10.0.1",
