@@ -1,0 +1,13 @@
+# cccc (https://github.com/moznion/cccc) の設定
+#
+# 閾値は「現状より悪化させない」ためのラチェットです。
+# 標準的な目安（認知的 15 / 循環的 10）では既存コードが落ちるため、
+# 導入時点の実測値の少し上に置いています。
+#
+# 導入時点の実測値（cccc v1.8.6、7 ファイル・29 関数）:
+#   - 認知的複雑度 max 26（src/cli.ts の main）
+#   - 循環的複雑度 max 29（src/core.ts の review）
+#
+# リファクタリングで max が下がったら、この値も引き下げてください。
+max-cognitive = 28
+max-cyclomatic = 31
