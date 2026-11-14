@@ -93,7 +93,9 @@ function createHttpAgent() {
 
 function createGoogleLLM(config: LLMReviewConfig): LLM {
   return new ChatGoogleGenerativeAI({
-    model: config.llm?.model || process.env.LLM_MODEL,
+    // 現行の型定義は model: string を要求するが、未設定時の扱いは従来どおり
+    // ライブラリ側に任せる（undefined のままコンストラクタへ渡す）ため、型だけ合わせる
+    model: (config.llm?.model || process.env.LLM_MODEL) as string,
     apiKey: process.env.LLM_API_KEY,
   });
 }

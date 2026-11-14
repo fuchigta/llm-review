@@ -103,7 +103,9 @@ async function validateTextDocument(textDocument: TextDocument) {
   const llmReviwDiagnostics = await review(
     filePath,
     text,
-    config as LLMReviewConfig
+    config as LLMReviewConfig,
+    // 言語サーバーには前回のレビュー結果の保持元がないため、「前回指摘なし」として空配列を渡す
+    []
   );
 
   try {
