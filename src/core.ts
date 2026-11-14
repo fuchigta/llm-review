@@ -82,6 +82,61 @@ const LLMReviewResponseSchema = z
   })
   .describe("レビュー実施結果。前回指摘(prevMessages)と同義の指摘は禁止する。");
 
+type LLM = ChatGoogleGenerativeAI | ChatOpenAI | AzureChatOpenAI;
+
+// HTTPS_PROXY が設定されていればプロキシ経由の httpAgent を作成
+function createHttpAgent() {
+  return process.env.HTTPS_PROXY
+    ? new HttpsProxyAgent(process.env.HTTPS_PROXY)
+    : undefined;
+}
+
+function createGoogleLLM(config: LLMReviewConfig): LLM {
+  return new ChatGoogleGenerativeAI({
+    model: config.llm?.model || process.env.LLM_MODEL,
+    apiKey: process.env.LLM_API_KEY,
+  });
+}
+
+function createOpenAILLM(config: LLMReviewConfig): LLM {
+  return new ChatOpenAI({
+    model: config.llm?.model || process.env.LLM_MODEL,
+    apiKey: process.env.LLM_API_KEY,
+    configuration: {
+      httpAgent: createHttpAgent(),
+    },
+  });
+}
+
+function createAzureOpenAILLM(config: LLMReviewConfig): LLM {
+  return new AzureChatOpenAI({
+    model: config.llm?.model || process.env.LLM_MODEL,
+    apiKey: process.env.LLM_API_KEY,
+    azureOpenAIApiDeploymentName: config.llm?.model || process.env.LLM_MODEL,
+    azureOpenAIApiKey: process.env.LLM_API_KEY,
+    azureOpenAIApiVersion:
+      config.llm?.apiVersion || process.env.LLM_API_VERSION,
+    azureOpenAIBasePath: config.llm?.basePath || process.env.LLM_API_BASE_PATH,
+    configuration: {
+      httpAgent: createHttpAgent(),
+    },
+  });
+}
+
+// 設定 (または環境変数 LLM_PROVIDER) に応じた LLM クライアントを作成
+function createLLM(config: LLMReviewConfig): LLM {
+  switch (config.llm?.provider || process.env.LLM_PROVIDER) {
+    case "google":
+      return createGoogleLLM(config);
+    case "openai":
+      return createOpenAILLM(config);
+    case "azure-openai":
+      return createAzureOpenAILLM(config);
+    default:
+      throw new InvalidLLMError("unknown provider");
+  }
+}
+
 export async function review(
   filePath: string,
   fileContent: string,
@@ -90,47 +145,7 @@ export async function review(
 ) {
   configDotenv();
 
-  let llm: ChatGoogleGenerativeAI | ChatOpenAI | AzureChatOpenAI;
-
-  switch (config.llm?.provider || process.env.LLM_PROVIDER) {
-    case "google":
-      llm = new ChatGoogleGenerativeAI({
-        model: config.llm?.model || process.env.LLM_MODEL,
-        apiKey: process.env.LLM_API_KEY,
-      });
-      break;
-    case "openai":
-      llm = new ChatOpenAI({
-        model: config.llm?.model || process.env.LLM_MODEL,
-        apiKey: process.env.LLM_API_KEY,
-        configuration: {
-          httpAgent: process.env.HTTPS_PROXY
-            ? new HttpsProxyAgent(process.env.HTTPS_PROXY)
-            : undefined,
-        },
-      });
-      break;
-    case "azure-openai":
-      llm = new AzureChatOpenAI({
-        model: config.llm?.model || process.env.LLM_MODEL,
-        apiKey: process.env.LLM_API_KEY,
-        azureOpenAIApiDeploymentName:
-          config.llm?.model || process.env.LLM_MODEL,
-        azureOpenAIApiKey: process.env.LLM_API_KEY,
-        azureOpenAIApiVersion:
-          config.llm?.apiVersion || process.env.LLM_API_VERSION,
-        azureOpenAIBasePath:
-          config.llm?.basePath || process.env.LLM_API_BASE_PATH,
-        configuration: {
-          httpAgent: process.env.HTTPS_PROXY
-            ? new HttpsProxyAgent(process.env.HTTPS_PROXY)
-            : undefined,
-        },
-      });
-      break;
-    default:
-      throw new InvalidLLMError("unknown provider");
-  }
+  const llm = createLLM(config);
 
   const fileName = path.basename(filePath);
   const target = config.docs[fileName];

@@ -19,18 +19,18 @@ function calculateHash(filePath: string): string {
   return createHash("sha256").update(fileContent).digest("hex");
 }
 
-// メモリデータの読み込み
-function loadMemory(): Record<
+// メモリデータ (ファイルごとのハッシュと指摘メッセージ)
+type Memory = Record<
   string,
   { hash: string; diagnostics: Record<string, Set<string>> }
-> {
+>;
+
+// メモリデータの読み込み
+function loadMemory(): Memory {
   if (existsSync(MEMORY_FILE)) {
     try {
       const rawData = JSON.parse(readFileSync(MEMORY_FILE, "utf8"));
-      const memory: Record<
-        string,
-        { hash: string; diagnostics: Record<string, Set<string>> }
-      > = {};
+      const memory: Memory = {};
       for (const file in rawData) {
         memory[file] = {
           hash: rawData[file].hash,
@@ -51,12 +51,7 @@ function loadMemory(): Record<
 }
 
 // メモリデータの保存
-function saveMemory(
-  memory: Record<
-    string,
-    { hash: string; diagnostics: Record<string, Set<string>> }
-  >
-) {
+function saveMemory(memory: Memory) {
   try {
     const rawData: Record<
       string,
@@ -111,6 +106,38 @@ function deepMerge(target: any, source: any): any {
 function isObject(item: any): boolean {
   return item && typeof item === "object" && !Array.isArray(item);
 }
+// include パターンに該当する設定ファイルを読み込み、順にマージする
+async function loadIncludedConfigs(
+  include: string[] | undefined,
+  configDir: string,
+  processedPaths: Set<string>
+): Promise<Partial<LLMReviewConfig>> {
+  let mergedConfig: Partial<LLMReviewConfig> = {};
+  if (!include || !Array.isArray(include)) {
+    return mergedConfig;
+  }
+
+  for (const pattern of include) {
+    // include パターンを解決 (設定ファイルからの相対パス)
+    const includePaths = await glob(pattern, {
+      cwd: configDir,
+      absolute: true,
+    });
+    for (const includePath of includePaths) {
+      // processedPaths のコピーを渡して循環参照チェック
+      const includedConfig = await loadAndMergeConfigs(
+        includePath,
+        new Set(processedPaths)
+      );
+      if (includedConfig) {
+        // include した設定をマージ (後勝ち)
+        mergedConfig = deepMerge(mergedConfig, includedConfig);
+      }
+    }
+  }
+  return mergedConfig;
+}
+
 // 設定ファイルを再帰的に読み込みマージする (include 対応)
 async function loadAndMergeConfigs(
   filePath: string,
@@ -146,30 +173,12 @@ async function loadAndMergeConfigs(
       include?: string[];
     };
 
-    let mergedConfig: Partial<LLMReviewConfig> = {}; // マージ結果の一時変数
-    const configDir = path.dirname(absolutePath);
-
     // 1. include を先に処理 (再帰)
-    if (currentConfig.include && Array.isArray(currentConfig.include)) {
-      for (const pattern of currentConfig.include) {
-        // include パターンを解決 (設定ファイルからの相対パス)
-        const includePaths = await glob(pattern, {
-          cwd: configDir,
-          absolute: true,
-        });
-        for (const includePath of includePaths) {
-          // processedPaths のコピーを渡して循環参照チェック
-          const includedConfig = await loadAndMergeConfigs(
-            includePath,
-            new Set(processedPaths)
-          );
-          if (includedConfig) {
-            // include した設定をマージ (後勝ち)
-            mergedConfig = deepMerge(mergedConfig, includedConfig);
-          }
-        }
-      }
-    }
+    let mergedConfig = await loadIncludedConfigs(
+      currentConfig.include,
+      path.dirname(absolutePath),
+      processedPaths
+    );
 
     // 2. 現在の設定をマージ (include した設定に上書き)
     // include プロパティを除外
@@ -191,6 +200,89 @@ async function loadAndMergeConfigs(
     // エラー時も処理中パスから削除
     processedPaths.delete(absolutePath);
     return null;
+  }
+}
+
+// パターンにワイルドカードが含まれているか確認
+function isGlobPattern(pattern: string): boolean {
+  return pattern.includes("*") || pattern.includes("?") || pattern.includes("[");
+}
+
+// 1 つのパターンに該当するファイルを取得
+async function resolvePattern(
+  pattern: string,
+  ignorePatterns: string[]
+): Promise<string[]> {
+  if (isGlobPattern(pattern)) {
+    return glob(pattern, { ignore: ignorePatterns });
+  }
+  // ワイルドカードがない場合はファイルとして直接追加
+  if (fs.existsSync(pattern) && fs.statSync(pattern).isFile()) {
+    return [pattern];
+  }
+  console.warn(`Warning: File not found: ${pattern}`);
+  return [];
+}
+
+// 各パターンに対してファイルを取得し、重複を除去して返す
+async function collectFiles(
+  patterns: string[],
+  ignorePatterns: string[]
+): Promise<string[]> {
+  let allFiles: string[] = [];
+
+  for (const pattern of patterns) {
+    try {
+      allFiles = allFiles.concat(await resolvePattern(pattern, ignorePatterns));
+    } catch (error) {
+      console.error(`Error processing pattern ${pattern}:`, error);
+    }
+  }
+
+  // 重複を除去
+  return [...new Set(allFiles)];
+}
+
+// 1 ファイルをレビューし、新しい指摘をメモリに追加して出力
+async function reviewFile(
+  file: string,
+  config: LLMReviewConfig,
+  memory: Memory
+) {
+  try {
+    const currentHash = calculateHash(file);
+
+    // ハッシュが異なる場合、diagnosticsをクリア
+    if (memory[file]?.hash !== currentHash) {
+      memory[file] = { hash: currentHash, diagnostics: {} };
+    }
+
+    const text = fs.readFileSync(file, { encoding: "utf8" });
+    const res = await review(
+      file,
+      text,
+      config,
+      Object.values(memory[file].diagnostics).flatMap((set) =>
+        Array.from(set)
+      )
+    );
+
+    if (!res.length) {
+      return;
+    }
+
+    // メモリに新しい指摘を追加
+    for (const ld of res) {
+      const key = `${ld.line}:${ld.column}`;
+      memory[file].diagnostics[key] =
+        memory[file].diagnostics[key] || new Set();
+      memory[file].diagnostics[key].add(ld.message);
+      console.log(
+        `${file}:${ld.line}:${ld.column}: ${ld.severity} - ${ld.message}`
+      );
+    }
+  } catch (error) {
+    console.error(`Error processing file ${file}:`, error);
   }
 }
 
@@ -222,34 +314,7 @@ async function main() {
     ? program.opts().ignore.split(",")
     : [];
 
-  let allFiles: string[] = [];
-
-  // 各パターンに対してファイルを取得
-  for (const pattern of patterns) {
-    try {
-      // パターンにワイルドカードが含まれているか確認
-      if (
-        pattern.includes("*") ||
-        pattern.includes("?") ||
-        pattern.includes("[")
-      ) {
-        const files = await glob(pattern, { ignore: ignorePatterns });
-        allFiles = allFiles.concat(files);
-      } else {
-        // ワイルドカードがない場合はファイルとして直接追加
-        if (fs.existsSync(pattern) && fs.statSync(pattern).isFile()) {
-          allFiles.push(pattern);
-        } else {
-          console.warn(`Warning: File not found: ${pattern}`);
-        }
-      }
-    } catch (error) {
-      console.error(`Error processing pattern ${pattern}:`, error);
-    }
-  }
-
-  // 重複を除去
-  allFiles = [...new Set(allFiles)];
+  const allFiles = await collectFiles(patterns, ignorePatterns);
 
   if (allFiles.length === 0) {
     console.error("No matching files found");
@@ -260,41 +325,7 @@ async function main() {
   const memory = loadMemory();
 
   for (const file of allFiles) {
-    try {
-      const currentHash = calculateHash(file);
-
-      // ハッシュが異なる場合、diagnosticsをクリア
-      if (memory[file]?.hash !== currentHash) {
-        memory[file] = { hash: currentHash, diagnostics: {} };
-      }
-
-      const text = fs.readFileSync(file, { encoding: "utf8" });
-      const res = await review(
-        file,
-        text,
-        config,
-        Object.values(memory[file].diagnostics).flatMap((set) =>
-          Array.from(set)
-        )
-      );
-
-      if (!res.length) {
-        continue;
-      }
-
-      // メモリに新しい指摘を追加
-      for (const ld of res) {
-        const key = `${ld.line}:${ld.column}`;
-        memory[file].diagnostics[key] =
-          memory[file].diagnostics[key] || new Set();
-        memory[file].diagnostics[key].add(ld.message);
-        console.log(
-          `${file}:${ld.line}:${ld.column}: ${ld.severity} - ${ld.message}`
-        );
-      }
-    } catch (error) {
-      console.error(`Error processing file ${file}:`, error);
-    }
+    await reviewFile(file, config, memory);
   }
 
   // メモリデータを保存
