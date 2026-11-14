@@ -106,6 +106,38 @@ function deepMerge(target: any, source: any): any {
 function isObject(item: any): boolean {
   return item && typeof item === "object" && !Array.isArray(item);
 }
+// include パターンに該当する設定ファイルを読み込み、順にマージする
+async function loadIncludedConfigs(
+  include: string[] | undefined,
+  configDir: string,
+  processedPaths: Set<string>
+): Promise<Partial<LLMReviewConfig>> {
+  let mergedConfig: Partial<LLMReviewConfig> = {};
+  if (!include || !Array.isArray(include)) {
+    return mergedConfig;
+  }
+
+  for (const pattern of include) {
+    // include パターンを解決 (設定ファイルからの相対パス)
+    const includePaths = await glob(pattern, {
+      cwd: configDir,
+      absolute: true,
+    });
+    for (const includePath of includePaths) {
+      // processedPaths のコピーを渡して循環参照チェック
+      const includedConfig = await loadAndMergeConfigs(
+        includePath,
+        new Set(processedPaths)
+      );
+      if (includedConfig) {
+        // include した設定をマージ (後勝ち)
+        mergedConfig = deepMerge(mergedConfig, includedConfig);
+      }
+    }
+  }
+  return mergedConfig;
+}
+
 // 設定ファイルを再帰的に読み込みマージする (include 対応)
 async function loadAndMergeConfigs(
   filePath: string,
@@ -141,30 +173,12 @@ async function loadAndMergeConfigs(
       include?: string[];
     };
 
-    let mergedConfig: Partial<LLMReviewConfig> = {}; // マージ結果の一時変数
-    const configDir = path.dirname(absolutePath);
-
     // 1. include を先に処理 (再帰)
-    if (currentConfig.include && Array.isArray(currentConfig.include)) {
-      for (const pattern of currentConfig.include) {
-        // include パターンを解決 (設定ファイルからの相対パス)
-        const includePaths = await glob(pattern, {
-          cwd: configDir,
-          absolute: true,
-        });
-        for (const includePath of includePaths) {
-          // processedPaths のコピーを渡して循環参照チェック
-          const includedConfig = await loadAndMergeConfigs(
-            includePath,
-            new Set(processedPaths)
-          );
-          if (includedConfig) {
-            // include した設定をマージ (後勝ち)
-            mergedConfig = deepMerge(mergedConfig, includedConfig);
-          }
-        }
-      }
-    }
+    let mergedConfig = await loadIncludedConfigs(
+      currentConfig.include,
+      path.dirname(absolutePath),
+      processedPaths
+    );
 
     // 2. 現在の設定をマージ (include した設定に上書き)
     // include プロパティを除外
