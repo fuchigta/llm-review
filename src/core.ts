@@ -4,8 +4,9 @@ import Handlebars from "handlebars";
 import path from "path";
 import z from "zod";
 import { configDotenv } from "dotenv";
-import { HttpsProxyAgent } from "https-proxy-agent";
 import { minimatch } from "minimatch";
+// fetch と ProxyAgent は同じ undici から取る（バージョン混在の警告を避けるため）
+import { fetch, ProxyAgent } from "undici";
 
 export interface LLMReviewConfig {
   // Optional list of glob patterns for including other config files
@@ -84,11 +85,19 @@ const LLMReviewResponseSchema = z
 
 type LLM = ChatGoogleGenerativeAI | ChatOpenAI | AzureChatOpenAI;
 
-// HTTPS_PROXY が設定されていればプロキシ経由の httpAgent を作成
-function createHttpAgent() {
-  return process.env.HTTPS_PROXY
-    ? new HttpsProxyAgent(process.env.HTTPS_PROXY)
-    : undefined;
+// HTTPS_PROXY が設定されていれば、OpenAI SDK にプロキシ経由の fetch 設定を渡す。
+// 現行の openai SDK は httpAgent を参照しないため、undici の dispatcher で指定する。
+// 未設定時は何も渡さず、SDK 既定の fetch で直結する（NO_PROXY は未対応）
+function createProxyConfiguration() {
+  const proxy = process.env.HTTPS_PROXY;
+  if (!proxy) {
+    return {};
+  }
+  return {
+    // undici 本体の型と @types/node 同梱の undici-types の版がずれているため型だけ合わせる
+    fetch: fetch as unknown as typeof globalThis.fetch,
+    fetchOptions: { dispatcher: new ProxyAgent(proxy) },
+  };
 }
 
 function createGoogleLLM(config: LLMReviewConfig): LLM {
@@ -104,9 +113,7 @@ function createOpenAILLM(config: LLMReviewConfig): LLM {
   return new ChatOpenAI({
     model: config.llm?.model || process.env.LLM_MODEL,
     apiKey: process.env.LLM_API_KEY,
-    configuration: {
-      httpAgent: createHttpAgent(),
-    },
+    configuration: createProxyConfiguration(),
   });
 }
 
@@ -119,9 +126,7 @@ function createAzureOpenAILLM(config: LLMReviewConfig): LLM {
     azureOpenAIApiVersion:
       config.llm?.apiVersion || process.env.LLM_API_VERSION,
     azureOpenAIBasePath: config.llm?.basePath || process.env.LLM_API_BASE_PATH,
-    configuration: {
-      httpAgent: createHttpAgent(),
-    },
+    configuration: createProxyConfiguration(),
   });
 }
 
