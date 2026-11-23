@@ -1,0 +1,10 @@
+{
+  "threshold": 0.5,
+  "ignore": [
+    "package-lock.json",
+    "config.d/**",
+    "README.md",
+    "CHANGELOG.md"
+  ],
+  "reporters": ["console"]
+}
