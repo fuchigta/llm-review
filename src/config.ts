@@ -98,6 +98,7 @@ export async function loadAndMergeConfigs(
   processedPaths.add(absolutePath); // 処理中のパスとしてマーク
 
   try {
+    // Stryker disable next-line StringLiteral: 等価。"" だと Buffer が返るが、toml.parse は Buffer を UTF-8 として読む
     const fileContent = fs.readFileSync(absolutePath, "utf8");
     // TOML をパース (unknown経由でキャスト)
     const currentConfig = toml.parse(

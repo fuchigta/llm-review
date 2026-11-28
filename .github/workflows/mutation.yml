@@ -1,0 +1,57 @@
+name: mutation
+
+# StrykerJS でミュータントを作り、テストが見逃したものが増えていないかを確かめる。
+# 設定は stryker.config.mjs、合否は scripts/check-mutation.mjs にある。
+#
+# - 版: @stryker-mutator/core・vitest-runner 10.1.1、vitest 4.1.12（package.json で固定）、Node 24
+# - 対象: src/config.ts と src/core.ts の全体。cli.ts・extension.ts・server.ts・constants.ts は
+#   対象外（理由は stryker.config.mjs）
+# - 差分実行・incremental は使わない。全件でも 180 件・手元 約 70 秒で、incremental は
+#   変異対象とテスト以外の変更（依存の更新など）を検出せず（Stryker 公式ドキュメント）、
+#   CI ではレポートをキャッシュで引き継ぐ仕組みも要るため
+# - 実測（2026-11-28、導入時）: 生成 180 件（core.ts 105・config.ts 75、うち等価として
+#   除外 2 件）、Killed 133・Timeout 3・Survived 41・NoCoverage 1、スコア 76.40%。
+#   3 回の全件実行でミュータントごとの結果まで一致。手元の Stryker 68〜72 秒
+# - ゲート: 見逃し（Survived + NoCoverage）の上限を実測に置くラチェット（導入時 42）。
+#   除外できない等価 1 件を含む。残りはテストの穴なので余裕は持たせない
+# - 終了コード 0 だけでは空振り（変異対象 0 件）を見分けられないので、チェックスクリプトは
+#   試されたミュータントが 1 件以上あり、mutate の各ファイルにミュータントがあることも確かめる
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  mutation:
+    name: mutation
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      # 最初のテスト実行（dry run）でテストが 1 件でも落ちると Stryker は失敗する
+      - name: Mutation testing
+        run: npm run test:mutation
+
+      - name: Check undetected mutants
+        run: node scripts/check-mutation.mjs
+
+      - name: Upload mutation report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mutation-report
+          path: reports/mutation/
+          if-no-files-found: ignore
