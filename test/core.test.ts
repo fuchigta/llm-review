@@ -39,7 +39,18 @@ beforeEach(() => {
   llm.invoke.mockResolvedValue({ diagnostics: [] });
   llm.withStructuredOutput.mockClear();
   llm.created.length = 0;
-  vi.stubEnv("LLM_PROVIDER", undefined);
+  // 実行環境の環境変数に結果が左右されないよう、core.ts が読むものはすべて未設定にする
+  // （HTTPS_PROXY が設定された環境では、プロキシ設定のミュータントの結果が CI と変わる）
+  for (const name of [
+    "LLM_PROVIDER",
+    "LLM_MODEL",
+    "LLM_API_KEY",
+    "LLM_API_VERSION",
+    "LLM_API_BASE_PATH",
+    "HTTPS_PROXY",
+  ]) {
+    vi.stubEnv(name, undefined);
+  }
 });
 
 function systemPrompt(): string {

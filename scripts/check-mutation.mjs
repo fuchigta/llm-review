@@ -15,14 +15,16 @@ import config from "../stryker.config.mjs";
 const REPORT = "reports/mutation/mutation.json";
 
 // 2026-11-28 の実測（導入時）: 生成 180 件（core.ts 105・config.ts 75）、
-//   等価として除外 2 件、Killed 133・Timeout 3・Survived 41・NoCoverage 1 → 上限 42
-//   全件実行 3 回でミュータントごとの結果まで一致した。42 件のうち 1 件
+//   等価として除外 2 件、Killed 136・Timeout 3・Survived 37・NoCoverage 2 → 上限 39
+//   手元の全件実行 3 回と CI の 1 回でミュータントごとの結果まで一致した（テストは
+//   core.ts が読む環境変数を未設定にしてから走るので、HTTPS_PROXY などの有無で変わらない）。
+//   39 件のうち 1 件
 //   （config.ts の `if (includedConfig)` → `if (true)`）は等価だが、同じ行の
 //   `if (false)` は殺せているため、ミューテーター単位の除外コメントでは外せず上限に含める。
-//   残る 41 件はテストの穴なので余裕は持たせない。新しい等価ミュータントが出たら、
+//   残る 38 件はテストの穴なので余裕は持たせない。新しい等価ミュータントが出たら、
 //   上限を上げずに除外コメントで扱う（同じ行の殺せるミュータントまで消えないか、
 //   Ignored の件数で確かめる）。
-const MAX_UNDETECTED = 42;
+const MAX_UNDETECTED = 39;
 
 function countStatuses(files) {
   const counts = {};
