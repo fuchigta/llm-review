@@ -46,8 +46,9 @@
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
     "pretest": "npm run compile && npm run lint",
-    "lint": "eslint src",
-    "test": "vscode-test",
+    "lint": "eslint src test",
+    "test": "vitest run",
+    "test:vscode": "vscode-test",
     "package": "vsce package --dependencies"
   },
   "files": [
@@ -68,7 +69,8 @@
     "@vscode/vsce": "^3.2.2",
     "eslint": "^9.19.0",
     "ts-node": "^10.9.2",
-    "typescript": "^5.7.3"
+    "typescript": "^5.7.3",
+    "vitest": "4.1.12"
   },
   "dependencies": {
     "@iarna/toml": "^2.2.5",
