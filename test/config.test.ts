@@ -297,4 +297,44 @@ prompt = "typescript"
       `Circular dependency detected involving ${aPath}. Skipping.`
     );
   });
+
+  it("ignores an include that is not an array", async () => {
+    // 文字列のまま繰り返すと 1 文字ずつのパターンになり、ファイル a が読まれてしまう
+    writeToml("a", '[docs."A.md"]\nprompt = "a"\n');
+    const configPath = writeToml(
+      "llm-review.toml",
+      'include = "a"\n\n[docs.default]\nprompt = "p"\n'
+    );
+
+    expect(await loadAndMergeConfigs(configPath)).toEqual({
+      docs: { default: { prompt: "p" } },
+    });
+  });
+
+  it("skips an included file that does not exist without logging", async () => {
+    // glob は壊れたシンボリックリンクも返すが、existsSync はリンク先が無いと false になる
+    const log = vi.spyOn(console, "log").mockImplementation(() => {});
+    fs.symlinkSync(
+      path.join(dir, "missing.toml"),
+      path.join(dir, "dangling.toml")
+    );
+    const configPath = writeToml(
+      "llm-review.toml",
+      'include = ["dangling.toml"]\n\n[docs.default]\nprompt = "p"\n'
+    );
+
+    expect(await loadAndMergeConfigs(configPath)).toEqual({
+      docs: { default: { prompt: "p" } },
+    });
+    expect(log).not.toHaveBeenCalled();
+  });
+
+  it("removes a file that fails to parse from the processed paths", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const configPath = writeToml("llm-review.toml", "docs = [");
+    const processedPaths = new Set<string>();
+
+    expect(await loadAndMergeConfigs(configPath, processedPaths)).toBeNull();
+    expect([...processedPaths]).toEqual([]);
+  });
 });
