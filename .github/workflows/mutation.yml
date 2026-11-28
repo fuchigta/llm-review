@@ -3,7 +3,7 @@ name: mutation
 # StrykerJS でミュータントを作り、テストが見逃したものが増えていないかを確かめる。
 # 設定は stryker.config.mjs、合否は scripts/check-mutation.mjs にある。
 #
-# - 版: @stryker-mutator/core・vitest-runner 10.1.1、vitest 4.1.12（package.json で固定）、Node 24
+# - 版: @stryker-mutator/core・vitest-runner 10.1.1、vitest 5.1.2（package.json で固定）、Node 24
 # - 対象: src/config.ts と src/core.ts の全体。cli.ts・extension.ts・server.ts・constants.ts は
 #   対象外（理由は stryker.config.mjs）
 # - 差分実行・incremental は使わない。全件でも 180 件・手元 約 70 秒で、incremental は
