@@ -54,6 +54,7 @@ export type Severity = z.infer<typeof SeveritySchema>;
 function matchGlob(filePath: string, pattern: string): boolean {
   return (
     minimatch(filePath, pattern) ||
+    // Stryker disable next-line StringLiteral: 等価。path.relative は "" を "." と同じく作業ディレクトリとして扱う
     minimatch(path.relative(".", filePath), pattern)
   );
 }
